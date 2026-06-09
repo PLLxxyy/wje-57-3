@@ -28,6 +28,32 @@ interface CoffeeState {
   removeFlavor: (index: number) => void;
 }
 
+function createRecipeUpdater(
+  state: CoffeeState,
+  mutator: (recipe: CoffeeRecipe) => Partial<CoffeeRecipe> | null,
+  regenerateName = true
+): Partial<CoffeeState> | undefined {
+  if (!state.currentCard) return undefined;
+  const recipe = state.currentCard.recipe;
+  const mutated = mutator(recipe);
+  if (mutated === null) return undefined;
+  const mergedRecipe = { ...recipe, ...mutated };
+  const newName = regenerateName
+    ? generateCoffeeName(mergedRecipe.flavors, mergedRecipe.base)
+    : recipe.name;
+  const newDescription = generateDescription(
+    mergedRecipe.base,
+    mergedRecipe.flavors,
+    mergedRecipe.topping,
+    mergedRecipe.milk
+  );
+  const updatedRecipe = { ...mergedRecipe, name: newName, description: newDescription };
+  return {
+    currentCard: { ...state.currentCard, recipe: updatedRecipe },
+    history: state.history.map(h => (h.id === recipe.id ? updatedRecipe : h)),
+  };
+}
+
 export const useCoffeeStore = create<CoffeeState>()(
   persist(
     (set, get) => ({
@@ -147,136 +173,52 @@ export const useCoffeeStore = create<CoffeeState>()(
       },
 
       updateBase: (base: string) => {
-        set((state) => {
-          if (!state.currentCard) return state;
-          const recipe = state.currentCard.recipe;
-          const newName = generateCoffeeName(recipe.flavors, base);
-          const newDescription = generateDescription(
-            base,
-            recipe.flavors,
-            recipe.topping,
-            recipe.milk
-          );
-          const updatedRecipe = { ...recipe, base, name: newName, description: newDescription };
-          return {
-            currentCard: { ...state.currentCard, recipe: updatedRecipe },
-            history: state.history.map(h => 
-              h.id === recipe.id ? updatedRecipe : h
-            ),
-          };
-        });
+        set((state) =>
+          createRecipeUpdater(state, () => ({ base }))
+        );
       },
 
       updateFlavor: (index: number, flavor: string) => {
-        set((state) => {
-          if (!state.currentCard) return state;
-          const recipe = state.currentCard.recipe;
-          const newFlavors = [...recipe.flavors];
-          newFlavors[index] = flavor;
-          const newName = generateCoffeeName(newFlavors, recipe.base);
-          const newDescription = generateDescription(
-            recipe.base,
-            newFlavors,
-            recipe.topping,
-            recipe.milk
-          );
-          const updatedRecipe = { ...recipe, flavors: newFlavors, name: newName, description: newDescription };
-          return {
-            currentCard: { ...state.currentCard, recipe: updatedRecipe },
-            history: state.history.map(h => 
-              h.id === recipe.id ? updatedRecipe : h
-            ),
-          };
-        });
+        set((state) =>
+          createRecipeUpdater(state, (recipe) => {
+            const newFlavors = [...recipe.flavors];
+            newFlavors[index] = flavor;
+            return { flavors: newFlavors };
+          })
+        );
       },
 
       updateMilk: (milk: string) => {
-        set((state) => {
-          if (!state.currentCard) return state;
-          const recipe = state.currentCard.recipe;
-          const newDescription = generateDescription(
-            recipe.base,
-            recipe.flavors,
-            recipe.topping,
-            milk
-          );
-          const updatedRecipe = { ...recipe, milk, description: newDescription };
-          return {
-            currentCard: { ...state.currentCard, recipe: updatedRecipe },
-            history: state.history.map(h => 
-              h.id === recipe.id ? updatedRecipe : h
-            ),
-          };
-        });
+        set((state) =>
+          createRecipeUpdater(state, () => ({ milk }), false)
+        );
       },
 
       updateTopping: (topping: string) => {
-        set((state) => {
-          if (!state.currentCard) return state;
-          const recipe = state.currentCard.recipe;
-          const newDescription = generateDescription(
-            recipe.base,
-            recipe.flavors,
-            topping,
-            recipe.milk
-          );
-          const updatedRecipe = { ...recipe, topping, description: newDescription };
-          return {
-            currentCard: { ...state.currentCard, recipe: updatedRecipe },
-            history: state.history.map(h => 
-              h.id === recipe.id ? updatedRecipe : h
-            ),
-          };
-        });
+        set((state) =>
+          createRecipeUpdater(state, () => ({ topping }), false)
+        );
       },
 
       addFlavor: () => {
-        set((state) => {
-          if (!state.currentCard) return state;
-          const recipe = state.currentCard.recipe;
-          if (recipe.flavors.length >= 5) return state;
-          const availableFlavors = ingredients.flavors.filter(f => !recipe.flavors.includes(f));
-          if (availableFlavors.length === 0) return state;
-          const randomFlavor = availableFlavors[Math.floor(Math.random() * availableFlavors.length)];
-          const newFlavors = [...recipe.flavors, randomFlavor];
-          const newName = generateCoffeeName(newFlavors, recipe.base);
-          const newDescription = generateDescription(
-            recipe.base,
-            newFlavors,
-            recipe.topping,
-            recipe.milk
-          );
-          const updatedRecipe = { ...recipe, flavors: newFlavors, name: newName, description: newDescription };
-          return {
-            currentCard: { ...state.currentCard, recipe: updatedRecipe },
-            history: state.history.map(h => 
-              h.id === recipe.id ? updatedRecipe : h
-            ),
-          };
-        });
+        set((state) =>
+          createRecipeUpdater(state, (recipe) => {
+            if (recipe.flavors.length >= 5) return null;
+            const availableFlavors = ingredients.flavors.filter(f => !recipe.flavors.includes(f));
+            if (availableFlavors.length === 0) return null;
+            const randomFlavor = availableFlavors[Math.floor(Math.random() * availableFlavors.length)];
+            return { flavors: [...recipe.flavors, randomFlavor] };
+          })
+        );
       },
 
       removeFlavor: (index: number) => {
-        set((state) => {
-          if (!state.currentCard) return state;
-          const recipe = state.currentCard.recipe;
-          if (recipe.flavors.length <= 2) return state;
-          const newFlavors = recipe.flavors.filter((_, i) => i !== index);
-          const newName = generateCoffeeName(newFlavors, recipe.base);
-          const newDescription = generateDescription(
-            recipe.base,
-            newFlavors,
-            recipe.topping,
-            recipe.milk
-          );
-          const updatedRecipe = { ...recipe, flavors: newFlavors, name: newName, description: newDescription };
-          return {
-            currentCard: { ...state.currentCard, recipe: updatedRecipe },
-            history: state.history.map(h => 
-              h.id === recipe.id ? updatedRecipe : h
-            ),
-          };
-        });
+        set((state) =>
+          createRecipeUpdater(state, (recipe) => {
+            if (recipe.flavors.length <= 2) return null;
+            return { flavors: recipe.flavors.filter((_, i) => i !== index) };
+          })
+        );
       },
     }),
     {
