@@ -1,6 +1,7 @@
 import CoffeeCard from '@/components/CoffeeCard/CoffeeCard';
 import StyleSwitcher from '@/components/StyleSwitcher';
 import ActionButtons from '@/components/ActionButtons';
+import IngredientEditor from '@/components/IngredientEditor';
 
 export default function GeneratorPage() {
   return (
@@ -23,6 +24,8 @@ export default function GeneratorPage() {
         >
           <CoffeeCard />
         </div>
+
+        <IngredientEditor />
 
         <ActionButtons />
       </div>
